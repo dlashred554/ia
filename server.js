@@ -16,7 +16,7 @@ const jobs = new Map();
 
 app.use(express.json({ limit: '100kb' }));
 app.use('/videos', express.static(OUT));
-app.use(express.static(path.join(__dirname, 'public')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 app.get('/api/config', (req, res) => res.json({
   provider: provider.name,
