@@ -1,60 +1,27 @@
-# Estudio de vídeo IA
+# Estudio de vídeo IA — modo local
 
-Escribes un prompt, eliges duración y estilo, y la app genera un MP4 vertical (1080×1920, 9:16).
-Vídeos cortos = un clip. Vídeos largos = escenas planificadas automáticamente, generadas una a una y unidas con ffmpeg.
+La app recibe un prompt, lo divide en escenas, pide cada clip a ComfyUI instalado en tu propio PC y después une los clips con ffmpeg.
 
-## Estructura
-```
-server.js            API + servidor web + orquestación de trabajos
-lib/planner.js       Divide el prompt en escenas (con "biblia visual" para continuidad)
-lib/ffmpeg.js        Normaliza clips a 9:16 y los une (ffmpeg-static, sin instalar nada)
-providers/           Proveedores intercambiables (mock, replicate)
-public/index.html    Interfaz
-.env.example  render.yaml  package.json
-```
+## Importante
 
-## Ejecutar en local
-1. Instala Node 18 o superior.
-2. `npm install`
-3. `cp .env.example .env`
-4. `npm start` y abre http://localhost:3000
+Tu GTX 1650 Ti de 4 GB de VRAM es demasiado limitada para modelos de vídeo modernos como Wan2.1 T2V-1.3B, que requiere alrededor de 8.19 GB de VRAM. Esta versión usa una ruta más ligera basada en AnimateDiff-Lightning + un checkpoint SD1.5.
 
-Por defecto usa `VIDEO_PROVIDER=mock`: **no genera vídeo con IA**, solo clips de prueba para verificar el flujo completo.
+## Preparación
 
-## Activar generación real con IA (Replicate)
-1. Crea una cuenta en https://replicate.com y un token en https://replicate.com/account/api-tokens
-2. En `.env`:
-   ```
-   VIDEO_PROVIDER=replicate
-   REPLICATE_API_TOKEN=tu_token
-   REPLICATE_MODEL=minimax/video-01
-   CLIP_SECONDS=6
-   ```
-3. Reinicia.
+1. Instala ComfyUI para Windows con soporte NVIDIA.
+2. Instala ComfyUI-AnimateDiff-Evolved y ComfyUI-VideoHelperSuite.
+3. Coloca un checkpoint SD1.5 compatible en ComfyUI/models/checkpoints/.
+4. Coloca animatediff_lightning_4step_comfyui.safetensors en ComfyUI/custom_nodes/ComfyUI-AnimateDiff-Evolved/models/.
+5. Arranca ComfyUI en http://127.0.0.1:8188.
+6. En este repositorio ejecuta npm install y después npm start.
+7. Abre http://localhost:3000.
 
-**Variable obligatoria: `REPLICATE_API_TOKEN`.**
-Antes de usar un modelo, abre su página en Replicate y comprueba: precio por clip, duración real del clip (`CLIP_SECONDS`) y parámetros aceptados (puedes pasarlos en `REPLICATE_EXTRA_INPUT` como JSON). La app solo envía `prompt` más lo que pongas ahí.
+## Qué hace
 
-## Costes y límites (importante)
-- Replicate da créditos limitados y luego cobra por uso; la disponibilidad depende de tu cuenta. No hay generación ilimitada.
-- Cada escena es una llamada de pago: 3 minutos con clips de 6 s ≈ 30 clips. La interfaz muestra el número estimado antes de generar.
-- Las escenas se generan en secuencia para respetar límites de peticiones (con reintentos ante error 429).
-- `MAX_TOTAL_SECONDS` (180 por defecto) limita la duración total.
+El prompt se divide en clips cortos. Cada clip se genera en tu GPU y después ffmpeg los une en un MP4 vertical.
 
-## Desplegar en Render
-1. Sube la carpeta a un repositorio de GitHub.
-2. En Render: **New → Blueprint** y selecciona el repo (usa `render.yaml`), o **New → Web Service** con Build `npm install` y Start `npm start`.
-3. En *Environment* añade `REPLICATE_API_TOKEN` y cambia `VIDEO_PROVIDER` a `replicate`.
-4. Notas del plan gratuito: el disco es efímero (los vídeos se pierden al reiniciar; descárgalos) y el servicio se duerme por inactividad. Los vídeos largos tardan minutos y ffmpeg usa CPU y RAM (512 MB puede quedarse justo).
+## Importante
 
-## Añadir otro proveedor
-Crea `providers/mi-proveedor.js` exportando:
-```js
-{ name, requiresApiKey, envVar, clipSeconds, notice, isConfigured(), async generateClip({ prompt, seconds, outPath }) }
-```
-`generateClip` debe guardar un MP4 en `outPath`. Regístralo en `providers/index.js` y usa `VIDEO_PROVIDER=mi-proveedor`.
+Si usas Render u otro servidor web, ese servidor NO puede acceder a la GPU de tu portátil. Para usar tu GTX 1650 Ti, esta aplicación debe ejecutarse en localhost.
 
-## Limitaciones actuales
-- La continuidad entre escenas se logra repitiendo personajes, estilo y escenario en cada prompt. No es perfecta; para más consistencia se puede usar imagen-a-vídeo con el último fotograma de cada escena (requiere un modelo que lo soporte).
-- El planificador de escenas es heurístico (no usa un LLM).
-- No hay audio, cola de trabajos persistente ni cuentas de usuario.
+Con 4 GB de VRAM puede haber errores de memoria. Mantén clips cortos y resolución moderada.
