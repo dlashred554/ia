@@ -1,27 +1,36 @@
-# Estudio de vídeo IA — modo local
+# Estudio de vídeo IA — generación online
 
-La app recibe un prompt, lo divide en escenas, pide cada clip a ComfyUI instalado en tu propio PC y después une los clips con ffmpeg.
+La app recibe un prompt, lo divide en escenas de hasta 5 segundos, genera cada clip online con **Wan 2.1 1.3B mediante Replicate** y después une los clips con ffmpeg en un único MP4 vertical 9:16.
 
-## Importante
+## No necesitas instalar nada de IA en tu portátil
 
-Tu GTX 1650 Ti de 4 GB de VRAM es demasiado limitada para modelos de vídeo modernos como Wan2.1 T2V-1.3B, que requiere alrededor de 8.19 GB de VRAM. Esta versión usa una ruta más ligera basada en AnimateDiff-Lightning + un checkpoint SD1.5.
+Solo necesitas un navegador y desplegar el proyecto en un servidor Node (por ejemplo, Render). La generación se ejecuta en Replicate, no en la GPU del portátil.
 
-## Preparación
+## Configuración
 
-1. Instala ComfyUI para Windows con soporte NVIDIA.
-2. Instala ComfyUI-AnimateDiff-Evolved y ComfyUI-VideoHelperSuite.
-3. Coloca un checkpoint SD1.5 compatible en ComfyUI/models/checkpoints/.
-4. Coloca animatediff_lightning_4step_comfyui.safetensors en ComfyUI/custom_nodes/ComfyUI-AnimateDiff-Evolved/models/.
-5. Arranca ComfyUI en http://127.0.0.1:8188.
-6. En este repositorio ejecuta npm install y después npm start.
-7. Abre http://localhost:3000.
+1. Crea una cuenta en Replicate y consigue un API token.
+2. En el servicio donde despliegues la app, añade la variable secreta:
+   `REPLICATE_API_TOKEN=tu_token`
+3. Usa `VIDEO_PROVIDER=replicate`.
+4. Despliega con:
+   `npm install`
+   y
+   `npm start`.
 
-## Qué hace
+**Nunca pongas el token dentro de GitHub ni en index.html.** Debe ser una variable secreta del servidor.
 
-El prompt se divide en clips cortos. Cada clip se genera en tu GPU y después ffmpeg los une en un MP4 vertical.
+## Modelo
 
-## Importante
+La app usa `wan-video/wan-2.1-1.3b`. El modelo genera vídeos de 5 segundos a 480p y admite formato vertical 9:16.
 
-Si usas Render u otro servidor web, ese servidor NO puede acceder a la GPU de tu portátil. Para usar tu GTX 1650 Ti, esta aplicación debe ejecutarse en localhost.
+## Duraciones
 
-Con 4 GB de VRAM puede haber errores de memoria. Mantén clips cortos y resolución moderada.
+Para vídeos de más de 5 segundos, el planificador crea varias escenas y las une automáticamente. Por ejemplo, 20 segundos son aproximadamente 4 generaciones del modelo.
+
+## Coste
+
+La generación online no es ilimitada gratis. El precio depende del modelo y del uso. Comprueba el precio actual en la página del modelo antes de generar muchos vídeos.
+
+## Flujo
+
+Navegador → tu servidor → Replicate → clips → ffmpeg → MP4 9:16 → navegador.
