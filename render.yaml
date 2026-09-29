@@ -7,8 +7,10 @@ services:
     startCommand: npm start
     envVars:
       - key: VIDEO_PROVIDER
-        value: mock
+        value: replicate
       - key: CLIP_SECONDS
-        value: "4"
+        value: "5"
       - key: MAX_TOTAL_SECONDS
         value: "60"
+      - key: REPLICATE_API_TOKEN
+        sync: false
