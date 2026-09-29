@@ -1,7 +1,7 @@
 {
   "name": "ai-video-generator",
-  "version": "1.1.0",
-  "description": "Generador local de vídeos IA con ComfyUI y ffmpeg",
+  "version": "1.2.0",
+  "description": "Generador web de vídeos IA con Replicate y ffmpeg",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
