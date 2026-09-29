@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ai-video-generator
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: VIDEO_PROVIDER
+        value: mock
+      - key: REPLICATE_API_TOKEN
+        sync: false
+      - key: REPLICATE_MODEL
+        value: minimax/video-01
+      - key: CLIP_SECONDS
+        value: "6"

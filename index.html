@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estudio de vídeo IA</title>
+<style>
+  :root { --bg:#f5efe4; --card:#fffdf8; --ink:#000; --brown:#6b4a34; --line:#d9ccb8; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: Georgia, "Times New Roman", serif; line-height:1.5; }
+  main { max-width: 1000px; margin: 0 auto; padding: 48px 20px 80px; display:grid; gap:32px; grid-template-columns: 1fr; }
+  @media (min-width: 860px) { main { grid-template-columns: 1.2fr 1fr; align-items:start; } header { grid-column: 1 / -1; } }
+  h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin:0 0 8px; letter-spacing:-0.02em; }
+  header p { margin:0; color:var(--brown); max-width: 52ch; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px; }
+  label { display:block; font-weight:bold; margin:18px 0 6px; }
+  #banner + label { margin-top:0; }
+  textarea, select, input[type=number], input[type=text] { width:100%; font:inherit; padding:12px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); }
+  textarea { min-height: 190px; resize: vertical; }
+  textarea:focus, select:focus, input:focus, button:focus-visible { outline:2px solid var(--brown); outline-offset:1px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .hide { display:none; }
+  .note { font-size:.9rem; color:var(--brown); margin:8px 0 0; }
+  .banner { background:#efe3cf; border-left:4px solid var(--brown); padding:10px 14px; border-radius:6px; font-size:.9rem; margin-bottom:20px; }
+  .banner.warn { background:#f6dcd2; border-color:#8a2b1a; }
+  button.go { width:100%; margin-top:24px; padding:18px; font:inherit; font-size:1.2rem; font-weight:bold; background:var(--ink); color:#fff; border:0; border-radius:12px; cursor:pointer; }
+  button.go:disabled { background:#8a8378; cursor:progress; }
+  .bar { height:10px; background:#e7dcc8; border-radius:99px; overflow:hidden; margin:12px 0 6px; }
+  .bar i { display:block; height:100%; width:0; background:var(--brown); transition:width .4s; }
+  .empty { color:var(--brown); }
+  video { width:100%; max-height:70vh; background:#000; border-radius:12px; aspect-ratio:9/16; object-fit:contain; margin-top:12px; }
+  a.dl { display:inline-block; margin-top:12px; padding:12px 20px; background:var(--brown); color:#fff; text-decoration:none; border-radius:10px; font-weight:bold; }
+  .err { color:#8a2b1a; font-weight:bold; }
+  @media (prefers-reduced-motion: reduce) { .bar i { transition:none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Describe un vídeo y lo generamos</h1>
+    <p>Escribe una sola descripción. Los vídeos largos se dividen en escenas y se unen en un único MP4 vertical.</p>
+  </header>
+
+  <section class="card">
+    <div id="banner" class="banner hide"></div>
+
+    <label for="prompt">Qué debe ocurrir en el vídeo</label>
+    <textarea id="prompt" placeholder="Una zorra con bufanda roja recorre un bosque nevado al amanecer. Encuentra un cachorro perdido y lo lleva a casa. Cámara lenta, luz cálida."></textarea>
+
+    <div class="row">
+      <div>
+        <label for="duration">Duración</label>
+        <select id="duration">
+          <option value="5">5 segundos</option>
+          <option value="10" selected>10 segundos</option>
+          <option value="20">20 segundos</option>
+          <option value="30">30 segundos</option>
+          <option value="60">1 minuto</option>
+          <option value="180">3 minutos</option>
+          <option value="custom">Personalizada</option>
+        </select>
+        <input id="customDuration" class="hide" type="number" min="1" value="15" aria-label="Duración en segundos" style="margin-top:8px">
+      </div>
+      <div>
+        <label for="style">Estilo (opcional)</label>
+        <select id="style">
+          <option value="">Sin preferencia</option>
+          <option>Realista</option>
+          <option>Animación 3D</option>
+          <option>Cartoon</option>
+          <option>Cinematográfico</option>
+          <option>Vídeo infantil</option>
+          <option value="custom">Otro…</option>
+        </select>
+        <input id="customStyle" class="hide" type="text" maxlength="100" placeholder="Escribe tu estilo" aria-label="Estilo personalizado" style="margin-top:8px">
+      </div>
+    </div>
+    <p id="estimate" class="note"></p>
+
+    <button id="go" class="go">Generar vídeo</button>
+  </section>
+
+  <section class="card" aria-live="polite">
+    <div id="status" class="empty">Tu vídeo aparecerá aquí. Formato 9:16 (1080×1920), apto para TikTok, Shorts y Reels.</div>
+    <div class="bar hide" id="barWrap"><i id="bar"></i></div>
+    <div id="result"></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let cfg = null;
+
+const seconds = () => Number($('duration').value === 'custom' ? $('customDuration').value : $('duration').value);
+const styleVal = () => ($('style').value === 'custom' ? $('customStyle').value.trim() : $('style').value);
+
+function showError(msg) {
+  const s = $('status');
+  s.className = 'err';
+  s.textContent = msg;
+}
+
+function updateEstimate() {
+  if (!cfg) return;
+  const n = Math.max(1, Math.ceil(seconds() / cfg.clipSeconds));
+  $('estimate').textContent = n === 1
+    ? 'Se generará como un único clip.'
+    : `Se dividirá en unas ${n} escenas (${n} llamadas al proveedor de vídeo${cfg.requiresApiKey ? ', cada una consume créditos' : ''}).`;
+}
+
+$('duration').onchange = () => { $('customDuration').classList.toggle('hide', $('duration').value !== 'custom'); updateEstimate(); };
+$('style').onchange = () => $('customStyle').classList.toggle('hide', $('style').value !== 'custom');
+$('customDuration').oninput = updateEstimate;
+
+fetch('/api/config').then((r) => r.json()).then((c) => {
+  cfg = c;
+  const b = $('banner');
+  b.classList.remove('hide');
+  b.textContent = c.notice;
+  if (!c.configured) {
+    b.classList.add('warn');
+    b.textContent = `Falta la variable de entorno ${c.envVar} en el servidor. ${c.notice}`;
+    $('go').disabled = true;
+  }
+  $('customDuration').max = c.maxSeconds;
+  updateEstimate();
+});
+
+$('go').onclick = async () => {
+  $('result').innerHTML = '';
+  $('status').className = 'empty';
+  const res = await fetch('/api/generate', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: $('prompt').value, duration: seconds(), style: styleVal() }),
+  });
+  const data = await res.json();
+  if (!res.ok) return showError(data.error);
+  $('go').disabled = true;
+  $('barWrap').classList.remove('hide');
+  $('bar').style.width = '0%';
+  poll(data.id);
+};
+
+async function poll(id) {
+  try {
+    const r = await fetch('/api/jobs/' + id);
+    const job = await r.json();
+    if (!r.ok) throw new Error(job.error);
+    $('bar').style.width = job.progress + '%';
+    $('status').textContent = `${job.message} ${job.progress}%`;
+    if (job.status === 'running') return setTimeout(() => poll(id), 2000);
+    finish(job);
+  } catch (e) { finish({ status: 'error', error: e.message }); }
+}
+
+function finish(job) {
+  $('go').disabled = false;
+  $('barWrap').classList.add('hide');
+  if (job.status === 'error') return showError('Error: ' + job.error);
+  $('status').textContent = `Vídeo listo · duración ${job.duration ? Math.round(job.duration) : '?'} s`;
+  $('result').innerHTML = `<video controls playsinline src="${job.url}"></video><br><a class="dl" href="${job.url}" download="video.mp4">Descargar MP4</a>`;
+}
+</script>
+</body>
+</html>
