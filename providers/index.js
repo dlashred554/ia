@@ -1,11 +1,11 @@
 const mock = require('./mock');
-const local = require('./local');
+const replicate = require('./replicate');
 
 function getProvider() {
-  const name = (process.env.VIDEO_PROVIDER || 'local').toLowerCase();
+  const name = (process.env.VIDEO_PROVIDER || 'replicate').toLowerCase();
   if (name === 'mock') return mock;
-  if (name === 'local') return local;
-  throw new Error(`Proveedor desconocido: ${name}. Usa VIDEO_PROVIDER=local o mock.`);
+  if (name === 'replicate') return replicate;
+  throw new Error(`Proveedor desconocido: ${name}. Usa VIDEO_PROVIDER=replicate o mock.`);
 }
 
 module.exports = { getProvider };
