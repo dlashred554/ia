@@ -8,9 +8,7 @@ services:
     envVars:
       - key: VIDEO_PROVIDER
         value: mock
-      - key: REPLICATE_API_TOKEN
-        sync: false
-      - key: REPLICATE_MODEL
-        value: minimax/video-01
       - key: CLIP_SECONDS
-        value: "6"
+        value: "4"
+      - key: MAX_TOTAL_SECONDS
+        value: "60"
